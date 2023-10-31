@@ -4,6 +4,7 @@ import random
 import scipy.io
 import numpy as np
 import tensorflow as tf
+import copy
 from PIL import Image
 
 from rasterization_utils.RealRenderer import GizehRasterizor as RealRenderer
@@ -11,7 +12,7 @@ from rasterization_utils.RealRenderer import GizehRasterizor as RealRenderer
 
 def copy_hparams(hparams):
     """Return a copy of an HParams instance."""
-    return tf.contrib.training.HParams(**hparams.values())
+    return copy.deepcopy(hparams)
 
 
 class GeneralRawDataLoader(object):
@@ -137,17 +138,17 @@ def load_dataset_testing(test_data_base_dir, test_dataset, test_img_name, model_
     print('Loaded {} from {}'.format(img_path, test_dataset))
 
     eval_model_params = copy_hparams(model_params)
-    eval_model_params.use_input_dropout = 0
-    eval_model_params.use_recurrent_dropout = 0
-    eval_model_params.use_output_dropout = 0
-    eval_model_params.batch_size = 1
-    eval_model_params.model_mode = 'sample'
+    eval_model_params['use_input_dropout'] = 0
+    eval_model_params['use_recurrent_dropout'] = 0
+    eval_model_params['use_output_dropout'] = 0
+    eval_model_params['batch_size'] = 1
+    eval_model_params['model_mode'] = 'sample'
 
     sample_model_params = copy_hparams(eval_model_params)
-    sample_model_params.batch_size = 1  # only sample one at a time
-    sample_model_params.max_seq_len = 1  # sample one point at a time
+    sample_model_params['batch_size'] = 1  # only sample one at a time
+    sample_model_params['max_seq_len'] = 1  # sample one point at a time
 
-    test_set = GeneralRawDataLoader(img_path, eval_model_params.raster_size, test_dataset=test_dataset)
+    test_set = GeneralRawDataLoader(img_path, eval_model_params['raster_size'], test_dataset=test_dataset)
 
     result = [test_set, eval_model_params, sample_model_params]
     return result
@@ -418,7 +419,7 @@ def load_dataset_multi_object(dataset_base_dir, model_params):
     train_stroke3_data = []
     val_stroke3_data = []
 
-    if model_params.data_set == 'clean_line_drawings':
+    if model_params['data_set'] == 'clean_line_drawings':
         def load_qd_npz_data(npz_path):
             data = np.load(npz_path, encoding='latin1', allow_pickle=True)
             selected_strokes3 = data['stroke3']  # (N_sketches,), each with (N_points, 3)
@@ -446,25 +447,25 @@ def load_dataset_multi_object(dataset_base_dir, model_params):
     else:
         raise Exception('Unknown data type:', model_params.data_set)
 
-    print('Loaded {}/{} from {}'.format(len(train_stroke3_data), len(val_stroke3_data), model_params.data_set))
-    print('model_params.max_seq_len %i.' % model_params.max_seq_len)
+    print('Loaded {}/{} from {}'.format(len(train_stroke3_data), len(val_stroke3_data), model_params['data_set']))
+    print('model_params.max_seq_len %i.' % model_params['max_seq_len'])
 
     eval_sample_model_params = copy_hparams(model_params)
-    eval_sample_model_params.use_input_dropout = 0
-    eval_sample_model_params.use_recurrent_dropout = 0
-    eval_sample_model_params.use_output_dropout = 0
-    eval_sample_model_params.batch_size = 1  # only sample one at a time
-    eval_sample_model_params.model_mode = 'eval_sample'
+    eval_sample_model_params['use_input_dropout'] = 0
+    eval_sample_model_params['use_recurrent_dropout'] = 0
+    eval_sample_model_params['use_output_dropout'] = 0
+    eval_sample_model_params['batch_size'] = 1  # only sample one at a time
+    eval_sample_model_params['model_mode'] = 'eval_sample'
 
     train_set = GeneralMultiObjectDataLoader(train_stroke3_data,
-                                             model_params.batch_size, model_params.raster_size,
-                                             model_params.image_size_small, model_params.image_size_large,
-                                             model_params.bin_gt, is_train=True)
+                                             model_params['batch_size'], model_params['raster_size'],
+                                             model_params['image_size_small'], model_params['image_size_large'],
+                                             model_params['bin_gt'], is_train=True)
     val_set = GeneralMultiObjectDataLoader(val_stroke3_data,
-                                           eval_sample_model_params.batch_size, eval_sample_model_params.raster_size,
-                                           eval_sample_model_params.image_size_small,
-                                           eval_sample_model_params.image_size_large,
-                                           eval_sample_model_params.bin_gt, is_train=False)
+                                           eval_sample_model_params['batch_size'], eval_sample_model_params['raster_size'],
+                                           eval_sample_model_params['image_size_small'],
+                                           eval_sample_model_params['image_size_large'],
+                                           eval_sample_model_params['bin_gt'], is_train=False)
 
     result = [train_set, val_set, model_params, eval_sample_model_params]
     return result
@@ -1214,7 +1215,7 @@ def load_dataset_normal_images(dataset_base_dir, model_params):
 
 
 def load_dataset_training(dataset_base_dir, model_params):
-    if model_params.data_set == 'clean_line_drawings':
+    if model_params['data_set'] == 'clean_line_drawings':
         return load_dataset_multi_object(dataset_base_dir, model_params)
     elif model_params.data_set == 'rough_sketches':
         return load_dataset_multi_object_rough(dataset_base_dir, model_params)

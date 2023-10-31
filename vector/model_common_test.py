@@ -1,5 +1,6 @@
 import rnn
 import tensorflow as tf
+import tensorflow_addons as tfa
 
 from subnet_tf_utils import generative_cnn_encoder, generative_cnn_encoder_deeper, generative_cnn_encoder_deeper13, \
     generative_cnn_c3_encoder, generative_cnn_c3_encoder_deeper, generative_cnn_c3_encoder_deeper13, \
@@ -10,11 +11,11 @@ from subnet_tf_utils import generative_cnn_encoder, generative_cnn_encoder_deepe
 
 class DiffPastingV3(object):
     def __init__(self, raster_size):
-        self.patch_canvas = tf.placeholder(dtype=tf.float32,
+        self.patch_canvas = tf.compat.v1.placeholder(dtype=tf.float32,
                                            shape=(None, None, 1))  # (raster_size, raster_size, 1), [0.0-BG, 1.0-stroke]
-        self.cursor_pos_a = tf.placeholder(dtype=tf.float32, shape=(2))  # (2), float32, in large size
-        self.image_size_a = tf.placeholder(dtype=tf.int32, shape=())  # ()
-        self.window_size_a = tf.placeholder(dtype=tf.float32, shape=())  # (), float32, with grad
+        self.cursor_pos_a = tf.compat.v1.placeholder(dtype=tf.float32, shape=(2))  # (2), float32, in large size
+        self.image_size_a = tf.compat.v1.placeholder(dtype=tf.int32, shape=())  # ()
+        self.window_size_a = tf.compat.v1.placeholder(dtype=tf.float32, shape=())  # (), float32, with grad
         self.raster_size_a = float(raster_size)
 
         self.pasted_image = self.image_pasting_sampling_v3()
@@ -82,7 +83,7 @@ class VirtualSketchingModel(object):
        reuse: a boolean that when true, attemps to reuse variables.
     """
         self.hps = hps
-        assert hps.model_mode in ['train', 'eval', 'eval_sample', 'sample']
+        assert hps['model_mode'] in ['train', 'eval', 'eval_sample', 'sample']
         # with tf.variable_scope('SCC', reuse=reuse):
         if not gpu_mode:
             with tf.device('/cpu:0'):
@@ -90,7 +91,7 @@ class VirtualSketchingModel(object):
                 self.build_model()
         else:
             print('-' * 100)
-            print('model_mode:', hps.model_mode)
+            print('model_mode:', hps['model_mode'])
             print('Model using gpu.')
             self.build_model()
 
@@ -110,66 +111,67 @@ class VirtualSketchingModel(object):
         self.pen_ras = pen_ras  # (N * max_seq_len, 2), after softmax
         self.final_state = final_state
 
-        if not self.hps.use_softargmax:
+        if not self.hps['use_softargmax']:
             pen_state_soft = pen_ras[:, 1:2]  # (N * max_seq_len, 1)
         else:
-            pen_state_soft = self.differentiable_argmax(pen_ras, self.hps.soft_beta)  # (N * max_seq_len, 1)
+            pen_state_soft = self.differentiable_argmax(pen_ras, self.hps['soft_beta'])  # (N * max_seq_len, 1)
 
         pred_params = tf.concat([pen_state_soft, other_params], axis=1)  # (N * max_seq_len, 7)
-        self.pred_params = tf.reshape(pred_params, shape=[-1, self.hps.max_seq_len, 7])  # (N, max_seq_len, 7)
+        self.pred_params = tf.reshape(pred_params, shape=[-1, self.hps['max_seq_len'], 7])  # (N, max_seq_len, 7)
         # pred_params: (N, max_seq_len, 7)
 
     def config_model(self):
-        if self.hps.model_mode == 'train':
+        if self.hps['model_mode'] == 'train':
             self.global_step = tf.Variable(0, name='global_step', trainable=False)
 
-        if self.hps.dec_model == 'lstm':
+        if self.hps['dec_model'] == 'lstm':
             dec_cell_fn = rnn.LSTMCell
-        elif self.hps.dec_model == 'layer_norm':
-            dec_cell_fn = rnn.LayerNormLSTMCell
-        elif self.hps.dec_model == 'hyper':
+        elif self.hps['dec_model'] == 'layer_norm':
+            dec_cell_fn = tfa.rnn.LayerNormLSTMCell
+
+        elif self.hps['dec_model'] == 'hyper':
             dec_cell_fn = rnn.HyperLSTMCell
         else:
             assert False, 'please choose a respectable cell'
 
-        use_recurrent_dropout = self.hps.use_recurrent_dropout
-        use_input_dropout = self.hps.use_input_dropout
-        use_output_dropout = self.hps.use_output_dropout
+        use_recurrent_dropout = self.hps['use_recurrent_dropout']
+        use_input_dropout = self.hps['use_input_dropout']
+        use_output_dropout = self.hps['use_output_dropout']
 
         dec_cell = dec_cell_fn(
-            self.hps.dec_rnn_size,
+            self.hps['dec_rnn_size'],
             use_recurrent_dropout=use_recurrent_dropout,
-            dropout_keep_prob=self.hps.recurrent_dropout_prob)
+            dropout_keep_prob=self.hps['recurrent_dropout_prob'])
 
         # dropout:
         # print('Input dropout mode = %s.' % use_input_dropout)
         # print('Output dropout mode = %s.' % use_output_dropout)
         # print('Recurrent dropout mode = %s.' % use_recurrent_dropout)
         if use_input_dropout:
-            print('Dropout to input w/ keep_prob = %4.4f.' % self.hps.input_dropout_prob)
-            dec_cell = tf.contrib.rnn.DropoutWrapper(
-                dec_cell, input_keep_prob=self.hps.input_dropout_prob)
+            print('Dropout to input w/ keep_prob = %4.4f.' % self.hps['input_dropout_prob'])
+            dec_cell = tf.compat.v1.nn.rnn_cell.DropoutWrapper(
+                dec_cell, input_keep_prob=self.hps['input_dropout_prob'])
         if use_output_dropout:
-            print('Dropout to output w/ keep_prob = %4.4f.' % self.hps.output_dropout_prob)
-            dec_cell = tf.contrib.rnn.DropoutWrapper(
-                dec_cell, output_keep_prob=self.hps.output_dropout_prob)
+            print('Dropout to output w/ keep_prob = %4.4f.' % self.hps['output_dropout_prob'])
+            dec_cell = tf.compat.v1.nn.rnn_cell.DropoutWrapper(
+                dec_cell, output_keep_prob=self.hps['output_dropout_prob'])
         self.dec_cell = dec_cell
-
-        self.input_photo = tf.placeholder(dtype=tf.float32,
-                                          shape=[self.hps.batch_size, None, None, self.hps.input_channel])  # [0.0-stroke, 1.0-BG]
-        self.init_cursor = tf.placeholder(
+        tf.compat.v1.disable_eager_execution()
+        self.input_photo = tf.compat.v1.placeholder(dtype=tf.float32,
+                                          shape=[self.hps['batch_size'], None, None, self.hps['input_channel']])  # [0.0-stroke, 1.0-BG]
+        self.init_cursor = tf.compat.v1.placeholder(
             dtype=tf.float32,
-            shape=[self.hps.batch_size, 1, 2])  # (N, 1, 2), in size [0.0, 1.0)
-        self.init_width = tf.placeholder(
+            shape=[self.hps['batch_size'], 1, 2])  # (N, 1, 2), in size [0.0, 1.0)
+        self.init_width = tf.compat.v1.placeholder(
             dtype=tf.float32,
-            shape=[self.hps.batch_size])  # (1), in [0.0, 1.0]
-        self.init_scaling = tf.placeholder(
+            shape=[self.hps['batch_size']])  # (1), in [0.0, 1.0]
+        self.init_scaling = tf.compat.v1.placeholder(
             dtype=tf.float32,
-            shape=[self.hps.batch_size])  # (N), in [0.0, 1.0]
-        self.init_window_size = tf.placeholder(
+            shape=[self.hps['batch_size']])  # (N), in [0.0, 1.0]
+        self.init_window_size = tf.compat.v1.placeholder(
             dtype=tf.float32,
-            shape=[self.hps.batch_size])  # (N)
-        self.image_size = tf.placeholder(dtype=tf.int32, shape=())  # ()
+            shape=[self.hps['batch_size']])  # (N)
+        self.image_size = tf.compat.v1.placeholder(dtype=tf.int32, shape=())  # ()
 
     ###########################
 
@@ -181,26 +183,26 @@ class VirtualSketchingModel(object):
     def add_coords(self, input_tensor):
         batch_size_tensor = tf.shape(input_tensor)[0]  # get N size
 
-        xx_ones = tf.ones([batch_size_tensor, self.hps.raster_size], dtype=tf.int32)  # e.g. (N, raster_size)
+        xx_ones = tf.ones([batch_size_tensor, self.hps['raster_size']], dtype=tf.int32)  # e.g. (N, raster_size)
         xx_ones = tf.expand_dims(xx_ones, -1)  # e.g. (N, raster_size, 1)
-        xx_range = tf.tile(tf.expand_dims(tf.range(self.hps.raster_size), 0),
+        xx_range = tf.tile(tf.expand_dims(tf.range(self.hps['raster_size']), 0),
                            [batch_size_tensor, 1])  # e.g. (N, raster_size)
         xx_range = tf.expand_dims(xx_range, 1)  # e.g. (N, 1, raster_size)
 
         xx_channel = tf.matmul(xx_ones, xx_range)  # e.g. (N, raster_size, raster_size)
         xx_channel = tf.expand_dims(xx_channel, -1)  # e.g. (N, raster_size, raster_size, 1)
 
-        yy_ones = tf.ones([batch_size_tensor, self.hps.raster_size], dtype=tf.int32)  # e.g. (N, raster_size)
+        yy_ones = tf.ones([batch_size_tensor, self.hps['raster_size']], dtype=tf.int32)  # e.g. (N, raster_size)
         yy_ones = tf.expand_dims(yy_ones, 1)  # e.g. (N, 1, raster_size)
-        yy_range = tf.tile(tf.expand_dims(tf.range(self.hps.raster_size), 0),
+        yy_range = tf.tile(tf.expand_dims(tf.range(self.hps['raster_size']), 0),
                            [batch_size_tensor, 1])  # (N, raster_size)
         yy_range = tf.expand_dims(yy_range, -1)  # e.g. (N, raster_size, 1)
 
         yy_channel = tf.matmul(yy_range, yy_ones)  # e.g. (N, raster_size, raster_size)
         yy_channel = tf.expand_dims(yy_channel, -1)  # e.g. (N, raster_size, raster_size, 1)
 
-        xx_channel = tf.cast(xx_channel, 'float32') / (self.hps.raster_size - 1)
-        yy_channel = tf.cast(yy_channel, 'float32') / (self.hps.raster_size - 1)
+        xx_channel = tf.cast(xx_channel, 'float32') / (self.hps['raster_size'] - 1)
+        yy_channel = tf.cast(yy_channel, 'float32') / (self.hps['raster_size'] - 1)
         # xx_channel = xx_channel * 2 - 1  # [-1, 1]
         # yy_channel = yy_channel * 2 - 1
 
@@ -223,37 +225,37 @@ class VirtualSketchingModel(object):
         :param window_size: (N, 1, 1), float, in large size
         :return:
         """
-        if self.hps.resize_method == 'BILINEAR':
+        if self.hps['resize_method'] == 'BILINEAR':
             resize_method = tf.image.ResizeMethod.BILINEAR
-        elif self.hps.resize_method == 'NEAREST_NEIGHBOR':
+        elif self.hps['resize_method'] == 'NEAREST_NEIGHBOR':
             resize_method = tf.image.ResizeMethod.NEAREST_NEIGHBOR
-        elif self.hps.resize_method == 'BICUBIC':
+        elif self.hps['resize_method'] == 'BICUBIC':
             resize_method = tf.image.ResizeMethod.BICUBIC
-        elif self.hps.resize_method == 'AREA':
+        elif self.hps['resize_method'] == 'AREA':
             resize_method = tf.image.ResizeMethod.AREA
         else:
-            raise Exception('unknown resize_method', self.hps.resize_method)
+            raise Exception('unknown resize_method', self.hps['resize_method'])
 
         patch_photo = tf.stop_gradient(patch_photo)
         patch_canvas = tf.stop_gradient(patch_canvas)
         cursor_pos = tf.stop_gradient(cursor_pos)
         window_size = tf.stop_gradient(window_size)
 
-        entire_photo_small = tf.stop_gradient(tf.image.resize_images(entire_photo,
-                                                                      (self.hps.raster_size, self.hps.raster_size),
+        entire_photo_small = tf.stop_gradient(tf.compat.v1.image.resize_images(entire_photo,
+                                                                      (self.hps['raster_size'], self.hps['raster_size']),
                                                                       method=resize_method))
-        entire_canvas_small = tf.stop_gradient(tf.image.resize_images(entire_canvas,
-                                                                      (self.hps.raster_size, self.hps.raster_size),
+        entire_canvas_small = tf.stop_gradient(tf.compat.v1.image.resize_images(entire_canvas,
+                                                                      (self.hps['raster_size'], self.hps['raster_size']),
                                                                       method=resize_method))
         entire_photo_small = self.normalize_image_m1to1(entire_photo_small)  # [-1.0-stroke, 1.0-BG]
         entire_canvas_small = self.normalize_image_m1to1(entire_canvas_small)  # [-1.0-stroke, 1.0-BG]
 
-        if self.hps.encode_cursor_type == 'value':
+        if self.hps['encode_cursor_type'] == 'value':
             cursor_pos_norm = tf.expand_dims(cursor_pos, axis=1)  # (N, 1, 1, 2)
-            cursor_pos_norm = tf.tile(cursor_pos_norm, [1, self.hps.raster_size, self.hps.raster_size, 1])
+            cursor_pos_norm = tf.tile(cursor_pos_norm, [1, self.hps['raster_size'], self.hps['raster_size'], 1])
             cursor_info = cursor_pos_norm
         else:
-            raise Exception('Unknown encode_cursor_type', self.hps.encode_cursor_type)
+            raise Exception('Unknown encode_cursor_type', self.hps['encode_cursor_type'])
 
         batch_input_combined = tf.concat([patch_photo, patch_canvas, entire_photo_small, entire_canvas_small, cursor_info],
                                 axis=-1)  # [N, raster_size, raster_size, 6/10]
@@ -261,69 +263,69 @@ class VirtualSketchingModel(object):
         batch_input_global = tf.concat([entire_photo_small, entire_canvas_small, cursor_info],
                                        axis=-1)  # [N, raster_size, raster_size, 4/6]
 
-        if self.hps.model_mode == 'train':
+        if self.hps['model_mode'] == 'train':
             is_training = True
-            dropout_keep_prob = self.hps.pix_drop_kp
+            dropout_keep_prob = self.hps['pix_drop_kp']
         else:
             is_training = False
             dropout_keep_prob = 1.0
 
-        if self.hps.add_coordconv:
+        if self.hps['add_coordconv']:
             batch_input_combined = self.add_coords(batch_input_combined)  # (N, in_H, in_W, in_dim + 2)
             batch_input_local = self.add_coords(batch_input_local)  # (N, in_H, in_W, in_dim + 2)
             batch_input_global = self.add_coords(batch_input_global)  # (N, in_H, in_W, in_dim + 2)
 
-        if 'combine' in self.hps.encoder_type:
-            if self.hps.encoder_type == 'combine33':
+        if 'combine' in self.hps['encoder_type']:
+            if self.hps['encoder_type'] == 'combine33':
                 image_embedding, _ = generative_cnn_c3_encoder_combine33(batch_input_local, batch_input_global,
                                                                          is_training, dropout_keep_prob)  # (N, 128)
-            elif self.hps.encoder_type == 'combine43':
+            elif self.hps['encoder_type'] == 'combine43':
                 image_embedding, _ = generative_cnn_c3_encoder_combine43(batch_input_local, batch_input_global,
                                                                          is_training, dropout_keep_prob)  # (N, 128)
-            elif self.hps.encoder_type == 'combine53':
+            elif self.hps['encoder_type'] == 'combine53':
                 image_embedding, _ = generative_cnn_c3_encoder_combine53(batch_input_local, batch_input_global,
                                                                          is_training, dropout_keep_prob)  # (N, 128)
-            elif self.hps.encoder_type == 'combineFC':
+            elif self.hps['encoder_type'] == 'combineFC':
                 image_embedding, _ = generative_cnn_c3_encoder_combineFC(batch_input_local, batch_input_global,
                                                                          is_training, dropout_keep_prob)  # (N, 256)
             else:
-                raise Exception('Unknown encoder_type', self.hps.encoder_type)
+                raise Exception('Unknown encoder_type', self.hps['encoder_type'])
         else:
-            with tf.variable_scope('Combined_Encoder', reuse=tf.AUTO_REUSE):
-                if self.hps.encoder_type == 'conv10':
+            with tf.compat.v1.variable_scope('Combined_Encoder', reuse=tf.compat.v1.AUTO_REUSE):
+                if self.hps['encoder_type'] == 'conv10':
                     image_embedding, _ = generative_cnn_encoder(batch_input_combined, is_training, dropout_keep_prob)  # (N, 128)
-                elif self.hps.encoder_type == 'conv10_deep':
+                elif self.hps['encoder_type'] == 'conv10_deep':
                     image_embedding, _ = generative_cnn_encoder_deeper(batch_input_combined, is_training, dropout_keep_prob)  # (N, 512)
-                elif self.hps.encoder_type == 'conv13':
+                elif self.hps['encoder_type'] == 'conv13':
                     image_embedding, _ = generative_cnn_encoder_deeper13(batch_input_combined, is_training, dropout_keep_prob)  # (N, 128)
-                elif self.hps.encoder_type == 'conv10_c3':
+                elif self.hps['encoder_type'] == 'conv10_c3':
                     image_embedding, _ = generative_cnn_c3_encoder(batch_input_combined, is_training, dropout_keep_prob)  # (N, 128)
-                elif self.hps.encoder_type == 'conv10_deep_c3':
+                elif self.hps['encoder_type'] == 'conv10_deep_c3':
                     image_embedding, _ = generative_cnn_c3_encoder_deeper(batch_input_combined, is_training, dropout_keep_prob)  # (N, 512)
-                elif self.hps.encoder_type == 'conv13_c3':
+                elif self.hps['encoder_type'] == 'conv13_c3':
                     image_embedding, _ = generative_cnn_c3_encoder_deeper13(batch_input_combined, is_training, dropout_keep_prob)  # (N, 128)
-                elif self.hps.encoder_type == 'conv13_c3_attn':
+                elif self.hps['encoder_type'] == 'conv13_c3_attn':
                     image_embedding, _ = generative_cnn_c3_encoder_deeper13_attn(batch_input_combined, is_training, dropout_keep_prob)  # (N, 128)
                 else:
-                    raise Exception('Unknown encoder_type', self.hps.encoder_type)
+                    raise Exception('Unknown encoder_type', self.hps['encoder_type'])
         return image_embedding
 
     def build_seq_decoder(self, dec_cell, actual_input_x, initial_state):
         rnn_output, last_state = self.rnn_decoder(dec_cell, initial_state, actual_input_x)
-        rnn_output_flat = tf.reshape(rnn_output, [-1, self.hps.dec_rnn_size])
+        rnn_output_flat = tf.reshape(rnn_output, [-1, self.hps['dec_rnn_size']])
 
         pen_n_out = 2
         params_n_out = 6
 
-        with tf.variable_scope('DEC_RNN_out_pen', reuse=tf.AUTO_REUSE):
-            output_w_pen = tf.get_variable('output_w', [self.hps.dec_rnn_size, pen_n_out])
-            output_b_pen = tf.get_variable('output_b', [pen_n_out], initializer=tf.constant_initializer(0.0))
-            output_pen = tf.nn.xw_plus_b(rnn_output_flat, output_w_pen, output_b_pen)  # (N, pen_n_out)
+        with tf.compat.v1.variable_scope('DEC_RNN_out_pen', reuse=tf.compat.v1.AUTO_REUSE):
+            output_w_pen = tf.compat.v1.get_variable('output_w', [self.hps['dec_rnn_size'], pen_n_out])
+            output_b_pen = tf.compat.v1.get_variable('output_b', [pen_n_out], initializer=tf.constant_initializer(0.0))
+            output_pen = tf.compat.v1.nn.xw_plus_b(rnn_output_flat, output_w_pen, output_b_pen)  # (N, pen_n_out)
 
-        with tf.variable_scope('DEC_RNN_out_params', reuse=tf.AUTO_REUSE):
-            output_w_params = tf.get_variable('output_w', [self.hps.dec_rnn_size, params_n_out])
-            output_b_params = tf.get_variable('output_b', [params_n_out], initializer=tf.constant_initializer(0.0))
-            output_params = tf.nn.xw_plus_b(rnn_output_flat, output_w_params, output_b_params)  # (N, params_n_out)
+        with tf.compat.v1.variable_scope('DEC_RNN_out_params', reuse=tf.compat.v1.AUTO_REUSE):
+            output_w_params = tf.compat.v1.get_variable('output_w', [self.hps['dec_rnn_size'], params_n_out])
+            output_b_params = tf.compat.v1.get_variable('output_b', [params_n_out], initializer=tf.constant_initializer(0.0))
+            output_params = tf.compat.v1.nn.xw_plus_b(rnn_output_flat, output_w_params, output_b_params)  # (N, params_n_out)
 
         output = tf.concat([output_pen, output_params], axis=1)  # (N, n_out)
 
@@ -335,17 +337,17 @@ class VirtualSketchingModel(object):
         z_other_params_logits = z[:, 2:]  # (N, 6)
 
         z_pen = tf.nn.softmax(z_pen_logits)  # (N, 2)
-        if self.hps.position_format == 'abs':
+        if self.hps['position_format'] == 'abs':
             x1y1 = tf.nn.sigmoid(z_other_params_logits[:, 0:2])  # (N, 2)
             x2y2 = tf.tanh(z_other_params_logits[:, 2:4])  # (N, 2)
             widths = tf.nn.sigmoid(z_other_params_logits[:, 4:5])  # (N, 1)
-            widths = tf.add(tf.multiply(widths, 1.0 - self.hps.min_width), self.hps.min_width)
-            scaling = tf.nn.sigmoid(z_other_params_logits[:, 5:6]) * self.hps.max_scaling  # (N, 1), [0.0, max_scaling]
+            widths = tf.add(tf.multiply(widths, 1.0 - self.hps['min_width']), self.hps['min_width'])
+            scaling = tf.nn.sigmoid(z_other_params_logits[:, 5:6]) * self.hps['max_scaling']  # (N, 1), [0.0, max_scaling]
             # scaling = tf.add(tf.multiply(scaling, (self.hps.max_scaling - self.hps.min_scaling) / self.hps.max_scaling),
             #                  self.hps.min_scaling)
             z_other_params = tf.concat([x1y1, x2y2, widths, scaling], axis=-1)  # (N, 6)
         else:  # "rel"
-            raise Exception('Unknown position_format', self.hps.position_format)
+            raise Exception('Unknown position_format', self.hps['position_format'])
 
         r = [z_other_params, z_pen]
         return r
@@ -353,12 +355,12 @@ class VirtualSketchingModel(object):
     ###########################
 
     def get_decoder_inputs(self):
-        initial_state = self.dec_cell.zero_state(batch_size=self.hps.batch_size, dtype=tf.float32)
+        initial_state = self.dec_cell.zero_state(batch_size=self.hps['batch_size'], dtype=tf.float32)
         return initial_state
 
     def rnn_decoder(self, dec_cell, initial_state, actual_input_x):
-        with tf.variable_scope("RNN_DEC", reuse=tf.AUTO_REUSE):
-            output, last_state = tf.nn.dynamic_rnn(
+        with tf.compat.v1.variable_scope("RNN_DEC", reuse=tf.compat.v1.AUTO_REUSE):
+            output, last_state = tf.compat.v1.nn.dynamic_rnn(
                 dec_cell,
                 actual_input_x,
                 initial_state=initial_state,
@@ -387,7 +389,7 @@ class VirtualSketchingModel(object):
         crop the patch
         :return:
         """
-        index_offset = self.hps.input_channel - 1
+        index_offset = self.hps['input_channel'] - 1
         input_image = fn_inputs[:, :, 0:2 + index_offset]  # (image_size, image_size, -), [0.0-BG, 1.0-stroke]
         cursor_pos = fn_inputs[0, 0, 2 + index_offset:4 + index_offset]  # (2), in [0.0, 1.0)
         image_size = fn_inputs[0, 0, 4 + index_offset]  # (), float32
@@ -402,7 +404,7 @@ class VirtualSketchingModel(object):
         patch_image = pad_img[:, y0:y1, x0:x1, :]  # (1, window_size, window_size, 2/4)
 
         # resize to raster_size
-        patch_image_scaled = tf.image.resize_images(patch_image, (self.hps.raster_size, self.hps.raster_size),
+        patch_image_scaled = tf.compat.v1.image.resize_images(patch_image, (self.hps['raster_size'], self.hps['raster_size']),
                                                     method=tf.image.ResizeMethod.AREA)
         patch_image_scaled = tf.squeeze(patch_image_scaled, axis=0)
         # patch_canvas_scaled: (raster_size, raster_size, 2/4), [0.0-BG, 1.0-stroke]
@@ -422,7 +424,7 @@ class VirtualSketchingModel(object):
         cursor_position_ = tf.tile(cursor_position_, [1, image_size, image_size, 1])  # (N, image_size, image_size, 2)
 
         image_size_ = tf.reshape(tf.cast(image_size, tf.float32), (1, 1, 1, 1))  # (1, 1, 1, 1)
-        image_size_ = tf.tile(image_size_, [self.hps.batch_size, image_size, image_size, 1])
+        image_size_ = tf.tile(image_size_, [self.hps['batch_size'], image_size, image_size, 1])
 
         window_sizes_ = tf.reshape(window_sizes_non_grad, (-1, 1, 1, 1))  # (N, 1, 1, 1)
         window_sizes_ = tf.tile(window_sizes_, [1, image_size, image_size, 1])  # (N, image_size, image_size, 1)
@@ -456,7 +458,7 @@ class VirtualSketchingModel(object):
         box_ind = tf.cumsum(box_ind) - 1
 
         curr_patch_imgs = tf.image.crop_and_resize(input_img, boxes, box_ind,
-                                                   crop_size=[self.hps.raster_size, self.hps.raster_size])
+                                                   crop_size=[self.hps['raster_size'], self.hps['raster_size']])
         #  (N, raster_size, raster_size, k), [0.0-BG, 1.0-stroke]
         return curr_patch_imgs
 
@@ -486,18 +488,18 @@ class VirtualSketchingModel(object):
         #### sampling part - start ####
         self.curr_canvas_hard = curr_canvas_hard
 
-        if self.hps.cropping_type == 'v3':
+        if self.hps['cropping_type'] == 'v3':
             cropping_func = self.image_cropping_v3
         # elif self.hps.cropping_type == 'v2':
         #     cropping_func = self.image_cropping
         else:
-            raise Exception('Unknown cropping_type', self.hps.cropping_type)
+            raise Exception('Unknown cropping_type', self.hps['cropping_type'])
 
-        for time_i in range(self.hps.max_seq_len):
+        for time_i in range(self.hps['max_seq_len']):
             cursor_position_non_grad = tf.stop_gradient(cursor_position_loop)  # (N, 1, 2), in size [0.0, 1.0)
 
             curr_window_size = tf.multiply(prev_scaling, tf.stop_gradient(prev_window_size))  # float, with grad
-            curr_window_size = tf.maximum(curr_window_size, tf.cast(self.hps.min_window_size, tf.float32))
+            curr_window_size = tf.maximum(curr_window_size, tf.cast(self.hps['min_window_size'], tf.float32))
             curr_window_size = tf.minimum(curr_window_size, tf.cast(image_size, tf.float32))
 
             ## patch-level encoding
@@ -509,7 +511,7 @@ class VirtualSketchingModel(object):
             crop_inputs = tf.concat([1.0 - self.input_photo, curr_canvas_hard_non_grad], axis=-1)  # (N, H_p, W_p, 1+1)
 
             cropped_outputs = cropping_func(cursor_position_non_grad, crop_inputs, image_size, curr_window_size)
-            index_offset = self.hps.input_channel - 1
+            index_offset = self.hps['input_channel'] - 1
             curr_patch_inputs = cropped_outputs[:, :, :, 0:1 + index_offset]  # [0.0-BG, 1.0-stroke]
             curr_patch_canvas_hard_non_grad = cropped_outputs[:, :, :, 1 + index_offset:2 + index_offset]
             # (N, raster_size, raster_size, 1/3), [0.0-BG, 1.0-stroke]
@@ -536,8 +538,8 @@ class VirtualSketchingModel(object):
             curr_window_size_top_side_norm_non_grad = \
                 tf.stop_gradient(curr_window_size / tf.cast(image_size, tf.float32))
             curr_window_size_bottom_side_norm_non_grad = \
-                tf.stop_gradient(curr_window_size / tf.cast(self.hps.min_window_size, tf.float32))
-            if not self.hps.concat_win_size:
+                tf.stop_gradient(curr_window_size / tf.cast(self.hps['min_window_size'], tf.float32))
+            if not self.hps['concat_win_size']:
                 combined_z = tf.concat([tf.stop_gradient(prev_width), combined_z], 2)  # (N, 1, 2+z_size)
             else:
                 combined_z = tf.concat([tf.stop_gradient(prev_width),
@@ -546,7 +548,7 @@ class VirtualSketchingModel(object):
                                         combined_z],
                                        2)  # (N, 1, 2+z_size)
 
-            if self.hps.concat_cursor:
+            if self.hps['concat_cursor']:
                 prev_input_x = tf.concat([cursor_position_non_grad, combined_z], 2)  # (N, 1, 2+2+z_size)
             else:
                 prev_input_x = combined_z  # (N, 1, 2+z_size)
