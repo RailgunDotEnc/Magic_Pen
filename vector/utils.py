@@ -13,20 +13,20 @@ import matplotlib.pyplot as plt
 
 def reset_graph():
     """Closes the current default session and resets the graph."""
-    sess = tf.get_default_session()
+    sess = tf.compat.v1.get_default_session()
     if sess:
         sess.close()
-    tf.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
 
 
 def load_checkpoint(sess, checkpoint_path, ras_only=False, perceptual_only=False, gen_model_pretrain=False,
                     train_entire=False):
     if ras_only:
-        load_var = {var.op.name: var for var in tf.global_variables() if 'raster_unit' in var.op.name}
+        load_var = {var.op.name: var for var in tf.compat.v1.global_variables() if 'raster_unit' in var.op.name}
     elif perceptual_only:
-        load_var = {var.op.name: var for var in tf.global_variables() if 'VGG16' in var.op.name}
+        load_var = {var.op.name: var for var in tf.compat.v1.global_variables() if 'VGG16' in var.op.name}
     elif train_entire:
-        load_var = {var.op.name: var for var in tf.global_variables()
+        load_var = {var.op.name: var for var in tf.compat.v1.global_variables()
                     if 'discriminator' not in var.op.name
                     and 'raster_unit' not in var.op.name
                     and 'VGG16' not in var.op.name
@@ -359,14 +359,14 @@ def draw_strokes(data, save_root, save_filename, input_img, image_size, init_cur
         plt.close()
         # plt.show()
 
-
 def update_hyperparams(model_params, model_base_dir, model_name, infer_dataset):
     with tf.io.gfile.GFile(os.path.join(model_base_dir, model_name, 'model_config.json'), 'r') as f:
         data = json.load(f)
 
     ignored_keys = ['image_size_small', 'image_size_large', 'z_size', 'raster_perc_loss_layer', 'raster_loss_wk',
                     'decreasing_sn', 'raster_loss_weight']
-    for name in model_params._hparam_types.keys():
+    for name in model_params.keys():
+    #Changed for name in model_params._hparam_types.keys() to for name in model_params.keys():
         if name not in data and name not in ignored_keys:
             raise Exception(name, 'not in model_config.json')
 
@@ -385,6 +385,8 @@ def update_hyperparams(model_params, model_base_dir, model_name, infer_dataset):
         if pop_key in data.keys():
             data.pop(pop_key)
 
-    model_params.parse_json(json.dumps(data))
+
+    model_params_json = json.dumps(data)
+    model_params = json.loads(model_params_json)
 
     return model_params

@@ -72,15 +72,15 @@ def instance_norm(input, name="instance_norm", init_method=None):
     if init_method is not None:
         initializer = get_initializer(init_method)
     else:
-        initializer = tf.random_normal_initializer(1.0, 0.02, dtype=tf.float32)
+        initializer = tf.compat.v1.random_normal_initializer(1.0, 0.02, dtype=tf.dtypes.float32)
 
-    with tf.variable_scope(name):
+    with tf.compat.v1.variable_scope(name):
         depth = input.get_shape()[3]
-        scale = tf.get_variable("scale", [depth], initializer=initializer)
-        offset = tf.get_variable("offset", [depth], initializer=tf.constant_initializer(0.0))
-        mean, variance = tf.nn.moments(input, axes=[1, 2], keep_dims=True)
+        scale = tf.compat.v1.get_variable("scale", [depth], initializer=initializer)
+        offset = tf.compat.v1.get_variable("offset", [depth], initializer=tf.constant_initializer(0.0))
+        mean, variance = tf.nn.moments(input, axes=[1, 2], keepdims=True)
         epsilon = 1e-5
-        inv = tf.rsqrt(variance + epsilon)
+        inv = tf.compat.v1.rsqrt(variance + epsilon)
         normalized = (input - mean) * inv
         return scale * normalized + offset
 
@@ -91,9 +91,9 @@ def linear1d(inputlin, inputdim, outputdim, name="linear1d", init_method=None):
     else:
         initializer = None
 
-    with tf.variable_scope(name) as scope:
-        weight = tf.get_variable("weight", [inputdim, outputdim], initializer=initializer)
-        bias = tf.get_variable("bias", [outputdim], dtype=tf.float32, initializer=tf.constant_initializer(0.0))
+    with tf.compat.v1.variable_scope(name) as scope:
+        weight = tf.compat.v1.get_variable("weight", [inputdim, outputdim], initializer=initializer)
+        bias = tf.compat.v1.get_variable("bias", [outputdim], dtype=tf.float32, initializer=tf.constant_initializer(0.0))
         return tf.matmul(inputlin, weight) + bias
 
 
@@ -103,13 +103,12 @@ def general_conv2d(inputconv, output_dim=64, filter_height=4, filter_width=4, st
     if init_method is not None:
         initializer = get_initializer(init_method)
     else:
-        initializer = tf.truncated_normal_initializer(stddev=stddev)
+        initializer = tf.compat.v1.truncated_normal_initializer(stddev=stddev)
 
-    with tf.variable_scope(name) as scope:
-        conv = tf.contrib.layers.conv2d(inputconv, output_dim, [filter_width, filter_height],
-                                        [stride_width, stride_height], padding, activation_fn=None,
-                                        weights_initializer=initializer,
-                                        biases_initializer=tf.constant_initializer(0.0))
+    with tf.compat.v1.variable_scope(name) as scope:
+        conv = tf.compat.v1.layers.conv2d(inputconv, output_dim, [filter_width, filter_height],
+                                        [stride_width, stride_height], padding, dilation_rate=(1,1), activation=None,
+                                        kernel_initializer=initializer, bias_initializer=tf.constant_initializer(0.0))
         if do_norm:
             if norm_type == 'instance_norm':
                 conv = instance_norm(conv, init_method=init_method)
@@ -117,11 +116,11 @@ def general_conv2d(inputconv, output_dim=64, filter_height=4, filter_width=4, st
                 #                                        scope='instance_norm')
             elif norm_type == 'batch_norm':
                 # conv = batchnorm(conv, init_method=init_method)
-                conv = tf.contrib.layers.batch_norm(conv, decay=0.9, is_training=is_training, updates_collections=None,
+                conv = tf.compat.v1.layers.batch_norm(conv, decay=0.9, is_training=is_training, updates_collections=None,
                                                     epsilon=1e-5, center=True, scale=True, scope="batch_norm")
             elif norm_type == 'layer_norm':
                 # conv = layernorm(conv, init_method=init_method)
-                conv = tf.contrib.layers.layer_norm(conv, center=True, scale=True, scope='layer_norm')
+                conv = tf.compat.v1.layers.layer_norm(conv, center=True, scale=True, scope='layer_norm')
 
         if do_relu:
             if relufactor == 0:
@@ -135,7 +134,7 @@ def general_conv2d(inputconv, output_dim=64, filter_height=4, filter_width=4, st
 def generative_cnn_c3_encoder(inputs, is_training=True, drop_keep_prob=0.5, init_method=None):
     tensor_x = inputs
 
-    with tf.variable_scope(tf.get_variable_scope(), reuse=tf.AUTO_REUSE) as scope:
+    with tf.compat.v1.variable_scope(tf.compat.v1.get_variable_scope(), reuse=tf.compat.v1.AUTO_REUSE) as scope:
         tensor_x = general_conv2d(tensor_x, 32, filter_height=3, filter_width=3,
                                   is_training=is_training, name="CNN_ENC_1", init_method=init_method)
         tensor_x = general_conv2d(tensor_x, 32, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
@@ -172,7 +171,7 @@ def generative_cnn_c3_encoder(inputs, is_training=True, drop_keep_prob=0.5, init
 def generative_cnn_c3_encoder_deeper(inputs, is_training=True, drop_keep_prob=0.5, init_method=None):
     tensor_x = inputs
 
-    with tf.variable_scope(tf.get_variable_scope(), reuse=tf.AUTO_REUSE) as scope:
+    with tf.compat.v1.variable_scope(tf.compat.v1.get_variable_scope(), reuse=tf.compat.v1.AUTO_REUSE) as scope:
         tensor_x = general_conv2d(tensor_x, 32, filter_height=3, filter_width=3,
                                   is_training=is_training, name="CNN_ENC_1", init_method=init_method)
         tensor_x = general_conv2d(tensor_x, 32, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
@@ -210,7 +209,7 @@ def generative_cnn_c3_encoder_combine33(local_inputs, global_inputs, is_training
     local_x = local_inputs
     global_x = global_inputs
 
-    with tf.variable_scope('Local_Encoder', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope('Local_Encoder', reuse=tf.compat.v1.AUTO_REUSE):
         local_x = general_conv2d(local_x, 32, filter_height=3, filter_width=3,
                                  is_training=is_training, name="CNN_ENC_1", init_method=init_method)
         local_x = general_conv2d(local_x, 32, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
@@ -228,7 +227,7 @@ def generative_cnn_c3_encoder_combine33(local_inputs, global_inputs, is_training
         local_x = general_conv2d(local_x, 128, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
                                  is_training=is_training, name="CNN_ENC_3_3", init_method=init_method)
 
-    with tf.variable_scope('Global_Encoder', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope('Global_Encoder', reuse=tf.compat.v1.AUTO_REUSE):
         global_x = general_conv2d(global_x, 32, filter_height=3, filter_width=3,
                                   is_training=is_training, name="CNN_ENC_1", init_method=init_method)
         global_x = general_conv2d(global_x, 32, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
@@ -248,7 +247,7 @@ def generative_cnn_c3_encoder_combine33(local_inputs, global_inputs, is_training
 
     tensor_x = tf.concat([local_x, global_x], axis=-1)
 
-    with tf.variable_scope('Combined_Encoder', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope('Combined_Encoder', reuse=tf.compat.v1.AUTO_REUSE):
         tensor_x = general_conv2d(tensor_x, 256, filter_height=3, filter_width=3,
                                   is_training=is_training, name="CNN_ENC_4", init_method=init_method)
         tensor_x = general_conv2d(tensor_x, 256, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
@@ -277,7 +276,7 @@ def generative_cnn_c3_encoder_combine43(local_inputs, global_inputs, is_training
     local_x = local_inputs
     global_x = global_inputs
 
-    with tf.variable_scope('Local_Encoder', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope('Local_Encoder', reuse=tf.compat.v1.AUTO_REUSE):
         local_x = general_conv2d(local_x, 32, filter_height=3, filter_width=3,
                                  is_training=is_training, name="CNN_ENC_1", init_method=init_method)
         local_x = general_conv2d(local_x, 32, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
@@ -302,7 +301,7 @@ def generative_cnn_c3_encoder_combine43(local_inputs, global_inputs, is_training
         local_x = general_conv2d(local_x, 256, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
                                  is_training=is_training, name="CNN_ENC_4_3", init_method=init_method)
 
-    with tf.variable_scope('Global_Encoder', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope('Global_Encoder', reuse=tf.compat.v1.AUTO_REUSE):
         global_x = general_conv2d(global_x, 32, filter_height=3, filter_width=3,
                                   is_training=is_training, name="CNN_ENC_1", init_method=init_method)
         global_x = general_conv2d(global_x, 32, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
@@ -329,7 +328,7 @@ def generative_cnn_c3_encoder_combine43(local_inputs, global_inputs, is_training
 
     tensor_x = tf.concat([local_x, global_x], axis=-1)
 
-    with tf.variable_scope('Combined_Encoder', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope('Combined_Encoder', reuse=tf.compat.v1.AUTO_REUSE):
         tensor_x = general_conv2d(tensor_x, 512, filter_height=3, filter_width=3,
                                   is_training=is_training, name="CNN_ENC_5", init_method=init_method)
         tensor_x = general_conv2d(tensor_x, 512, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
@@ -351,7 +350,7 @@ def generative_cnn_c3_encoder_combine53(local_inputs, global_inputs, is_training
     local_x = local_inputs
     global_x = global_inputs
 
-    with tf.variable_scope('Local_Encoder', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope('Local_Encoder', reuse=tf.compat.v1.AUTO_REUSE):
         local_x = general_conv2d(local_x, 32, filter_height=3, filter_width=3,
                                  is_training=is_training, name="CNN_ENC_1", init_method=init_method)
         local_x = general_conv2d(local_x, 32, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
@@ -417,7 +416,7 @@ def generative_cnn_c3_encoder_combine53(local_inputs, global_inputs, is_training
 
     tensor_x = tf.concat([local_x, global_x], axis=-1)
 
-    with tf.variable_scope('Combined_Encoder', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope('Combined_Encoder', reuse=tf.compat.v1.AUTO_REUSE):
         tensor_x_sp = tensor_x  # [N, h, w, 256]
         tensor_x = tf.reshape(tensor_x, (-1, 1024 * 4 * 4))
         tensor_x = linear1d(tensor_x, 1024 * 4 * 4, 128, name='CNN_ENC_FC', init_method=init_method)
@@ -432,7 +431,7 @@ def generative_cnn_c3_encoder_combineFC(local_inputs, global_inputs, is_training
     local_x = local_inputs
     global_x = global_inputs
 
-    with tf.variable_scope('Local_Encoder', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope('Local_Encoder', reuse=tf.compat.v1.AUTO_REUSE):
         local_x = general_conv2d(local_x, 32, filter_height=3, filter_width=3,
                                  is_training=is_training, name="CNN_ENC_1", init_method=init_method)
         local_x = general_conv2d(local_x, 32, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
@@ -470,7 +469,7 @@ def generative_cnn_c3_encoder_combineFC(local_inputs, global_inputs, is_training
         if is_training:
             local_x = tf.nn.dropout(local_x, drop_keep_prob)
 
-    with tf.variable_scope('Global_Encoder', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope('Global_Encoder', reuse=tf.compat.v1.AUTO_REUSE):
         global_x = general_conv2d(global_x, 32, filter_height=3, filter_width=3,
                                   is_training=is_training, name="CNN_ENC_1", init_method=init_method)
         global_x = general_conv2d(global_x, 32, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
@@ -518,7 +517,7 @@ def generative_cnn_c3_encoder_combineFC_jointAttn(local_inputs, global_inputs, i
     local_x = local_inputs
     global_x = global_inputs
 
-    with tf.variable_scope('Local_Encoder', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope('Local_Encoder', reuse=tf.compat.v1.AUTO_REUSE):
         local_x = general_conv2d(local_x, 32, filter_height=3, filter_width=3,
                                  is_training=is_training, name="CNN_ENC_1", init_method=init_method)
         local_x = general_conv2d(local_x, 32, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
@@ -538,7 +537,7 @@ def generative_cnn_c3_encoder_combineFC_jointAttn(local_inputs, global_inputs, i
 
         share_x = local_x
 
-        with tf.variable_scope('Attn_branch', reuse=tf.AUTO_REUSE):
+        with tf.compat.v1.variable_scope('Attn_branch', reuse=tf.compat.v1.AUTO_REUSE):
             attn_x = general_conv2d(share_x, 128, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
                                     is_training=is_training, name="CNN_ENC_1", init_method=init_method)
             attn_x = general_conv2d(attn_x, 32, filter_height=1, filter_width=1, stride_height=1, stride_width=1,
@@ -572,7 +571,7 @@ def generative_cnn_c3_encoder_combineFC_jointAttn(local_inputs, global_inputs, i
         if is_training:
             local_x = tf.nn.dropout(local_x, drop_keep_prob)
 
-    with tf.variable_scope('Global_Encoder', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope('Global_Encoder', reuse=tf.compat.v1.AUTO_REUSE):
         global_x = general_conv2d(global_x, 32, filter_height=3, filter_width=3,
                                   is_training=is_training, name="CNN_ENC_1", init_method=init_method)
         global_x = general_conv2d(global_x, 32, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
@@ -620,7 +619,7 @@ def generative_cnn_c3_encoder_combineFC_sepAttn(local_inputs, global_inputs, is_
     local_x = local_inputs
     global_x = global_inputs
 
-    with tf.variable_scope('Attn_branch', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope('Attn_branch', reuse=tf.compat.v1.AUTO_REUSE):
         attn_x = general_conv2d(local_x, 32, filter_height=3, filter_width=3,
                                 is_training=is_training, name="CNN_ENC_1", init_method=init_method)
         attn_x = general_conv2d(attn_x, 32, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
@@ -639,7 +638,7 @@ def generative_cnn_c3_encoder_combineFC_sepAttn(local_inputs, global_inputs, is_
                                 is_training=is_training, name="CNN_ENC_3_3", init_method=init_method)
         attn_map = tf.nn.sigmoid(attn_x)  # (N, H/8, W/8, 1), [0.0, 1.0]
 
-    with tf.variable_scope('Local_Encoder', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope('Local_Encoder', reuse=tf.compat.v1.AUTO_REUSE):
         local_x = general_conv2d(local_x, 32, filter_height=3, filter_width=3,
                                  is_training=is_training, name="CNN_ENC_1", init_method=init_method)
         local_x = general_conv2d(local_x, 32, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
@@ -684,7 +683,7 @@ def generative_cnn_c3_encoder_combineFC_sepAttn(local_inputs, global_inputs, is_
         if is_training:
             local_x = tf.nn.dropout(local_x, drop_keep_prob)
 
-    with tf.variable_scope('Global_Encoder', reuse=tf.AUTO_REUSE):
+    with tf.compat.v1.variable_scope('Global_Encoder', reuse=tf.compat.v1.AUTO_REUSE):
         global_x = general_conv2d(global_x, 32, filter_height=3, filter_width=3,
                                   is_training=is_training, name="CNN_ENC_1", init_method=init_method)
         global_x = general_conv2d(global_x, 32, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
@@ -730,7 +729,7 @@ def generative_cnn_c3_encoder_combineFC_sepAttn(local_inputs, global_inputs, is_
 def generative_cnn_c3_encoder_deeper13(inputs, is_training=True, drop_keep_prob=0.5, init_method=None):
     tensor_x = inputs
 
-    with tf.variable_scope(tf.get_variable_scope(), reuse=tf.AUTO_REUSE) as scope:
+    with tf.compat.v1.variable_scope(tf.compat.v1.get_variable_scope(), reuse=tf.compat.v1.AUTO_REUSE) as scope:
         tensor_x = general_conv2d(tensor_x, 32, filter_height=3, filter_width=3,
                                   is_training=is_training, name="CNN_ENC_1", init_method=init_method)
         tensor_x = general_conv2d(tensor_x, 32, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
@@ -767,7 +766,7 @@ def generative_cnn_c3_encoder_deeper13(inputs, is_training=True, drop_keep_prob=
         tensor_x = linear1d(tensor_x, 512 * 4 * 4, 128, name='CNN_ENC_FC', init_method=init_method)
 
         if is_training:
-            tensor_x = tf.nn.dropout(tensor_x, drop_keep_prob)
+            tensor_x = tf.compat.v1.nn.dropout(tensor_x, drop_keep_prob)
 
         return tensor_x, tensor_x_sp
 
@@ -775,7 +774,7 @@ def generative_cnn_c3_encoder_deeper13(inputs, is_training=True, drop_keep_prob=
 def generative_cnn_c3_encoder_deeper13_attn(inputs, is_training=True, drop_keep_prob=0.5, init_method=None):
     tensor_x = inputs
 
-    with tf.variable_scope(tf.get_variable_scope(), reuse=tf.AUTO_REUSE) as scope:
+    with tf.compat.v1.variable_scope(tf.compat.v1.get_variable_scope(), reuse=tf.compat.v1.AUTO_REUSE) as scope:
         tensor_x = general_conv2d(tensor_x, 32, filter_height=3, filter_width=3,
                                   is_training=is_training, name="CNN_ENC_1", init_method=init_method)
         tensor_x = general_conv2d(tensor_x, 32, filter_height=3, filter_width=3, stride_height=1, stride_width=1,
@@ -822,7 +821,7 @@ def generative_cnn_c3_encoder_deeper13_attn(inputs, is_training=True, drop_keep_
 def generative_cnn_encoder(inputs, is_training=True, drop_keep_prob=0.5, init_method=None):
     tensor_x = inputs
 
-    with tf.variable_scope(tf.get_variable_scope(), reuse=tf.AUTO_REUSE) as scope:
+    with tf.compat.v1.variable_scope(tf.compat.v1.get_variable_scope(), reuse=tf.compat.v1.AUTO_REUSE) as scope:
         tensor_x = general_conv2d(tensor_x, 32, is_training=is_training, name="CNN_ENC_1", init_method=init_method)
         tensor_x = general_conv2d(tensor_x, 32, stride_height=1, stride_width=1, is_training=is_training,
                                   name="CNN_ENC_1_2", init_method=init_method)
@@ -854,7 +853,7 @@ def generative_cnn_encoder(inputs, is_training=True, drop_keep_prob=0.5, init_me
 def generative_cnn_encoder_deeper(inputs, is_training=True, drop_keep_prob=0.5, init_method=None):
     tensor_x = inputs
 
-    with tf.variable_scope(tf.get_variable_scope(), reuse=tf.AUTO_REUSE) as scope:
+    with tf.compat.v1.variable_scope(tf.compat.v1.get_variable_scope(), reuse=tf.compat.v1.AUTO_REUSE) as scope:
         tensor_x = general_conv2d(tensor_x, 32, is_training=is_training, name="CNN_ENC_1", init_method=init_method)
         tensor_x = general_conv2d(tensor_x, 32, stride_height=1, stride_width=1, is_training=is_training,
                                   name="CNN_ENC_1_2", init_method=init_method)
@@ -886,7 +885,7 @@ def generative_cnn_encoder_deeper(inputs, is_training=True, drop_keep_prob=0.5, 
 def generative_cnn_encoder_deeper13(inputs, is_training=True, drop_keep_prob=0.5, init_method=None):
     tensor_x = inputs
 
-    with tf.variable_scope(tf.get_variable_scope(), reuse=tf.AUTO_REUSE) as scope:
+    with tf.compat.v1.variable_scope(tf.compat.v1.get_variable_scope(), reuse=tf.compat.v1.AUTO_REUSE) as scope:
         tensor_x = general_conv2d(tensor_x, 32, is_training=is_training,
                                   name="CNN_ENC_1", init_method=init_method)
         tensor_x = general_conv2d(tensor_x, 32, stride_height=1, stride_width=1, is_training=is_training,
@@ -929,7 +928,7 @@ def generative_cnn_encoder_deeper13(inputs, is_training=True, drop_keep_prob=0.5
 
 
 def max_pooling(x) :
-    return tf.layers.max_pooling2d(x, pool_size=2, strides=2, padding='SAME')
+    return tf.compat.v1.layers.max_pooling2d(x, pool_size=2, strides=2, padding='SAME')
 
 
 def hw_flatten(x) :
@@ -937,7 +936,7 @@ def hw_flatten(x) :
 
 
 def self_attention(x, in_channel, name='self_attention'):
-    with tf.variable_scope(name) as scope:
+    with tf.compat.v1.variable_scope(name) as scope:
         f = general_conv2d(x, in_channel // 8, filter_height=1, filter_width=1, stride_height=1, stride_width=1,
                            do_norm=False, do_relu=False, name='f_conv')  # (N, h, w, c')
         f = max_pooling(f)  # (N, h', w', c')
@@ -952,7 +951,7 @@ def self_attention(x, in_channel, name='self_attention'):
         beta = tf.nn.softmax(s)  # attention map
 
         o = tf.matmul(beta, hw_flatten(h))  # (N, M, c)
-        gamma = tf.get_variable("gamma", [1], initializer=tf.constant_initializer(0.0))
+        gamma = tf.compat.v1.get_variable("gamma", [1], initializer=tf.constant_initializer(0.0))
 
         o = tf.reshape(o, shape=x.shape)  # (N, h, w, c)
         o = general_conv2d(o, in_channel, filter_height=1, filter_width=1, stride_height=1, stride_width=1,
@@ -971,7 +970,7 @@ def global_avg_pooling(x):
 def cnn_discriminator_wgan_gp(discrim_inputs, discrim_targets, init_method=None):
     tensor_x = tf.concat([discrim_inputs, discrim_targets], axis=3)  # (N, H, W, 3 + 1)
 
-    with tf.variable_scope(tf.get_variable_scope(), reuse=tf.AUTO_REUSE) as scope:
+    with tf.compat.v1.variable_scope(tf.compat.v1.get_variable_scope(), reuse=tf.compat.v1.AUTO_REUSE) as scope:
         tensor_x = general_conv2d(tensor_x, 32, filter_height=3, filter_width=3,
                                   is_training=True, name="CNN_ENC_1", init_method=init_method)
         tensor_x = general_conv2d(tensor_x, 64, filter_height=3, filter_width=3,
