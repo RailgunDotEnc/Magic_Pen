@@ -330,7 +330,8 @@ class HyperLSTMCell(tf.compat.v1.nn.rnn_cell.RNNCell):
 
     def __call__(self, x, state, timestep=0, scope=None):
         with tf.compat.v1.variable_scope(scope or type(self).__name__):
-            total_c, total_h = tf.split(state, 2, 1)  #input shapes: [], [2,1,384] and with computed input tensors: input[0] = <1>.
+            print("CHECK HERE: ",state)
+            total_c, total_h = tf.split(state, 2, axis=2)  #input shapes: [], [2,1,384] and with computed input tensors: input[0] = <1>.
             c = total_c[:, 0:self.num_units]
             h = total_h[:, 0:self.num_units]
             hyper_state = tf.compat.v1.nn.rnn_cell.LSTMStateTuple(

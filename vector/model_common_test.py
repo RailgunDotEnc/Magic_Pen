@@ -311,6 +311,7 @@ class VirtualSketchingModel(object):
         return image_embedding
 
     def build_seq_decoder(self, dec_cell, actual_input_x, initial_state):
+        print("CHECK ME: ",initial_state)
         rnn_output, last_state = self.rnn_decoder(dec_cell, initial_state, actual_input_x)
         rnn_output_flat = tf.reshape(rnn_output, [-1, self.hps['dec_rnn_size']])
 
