@@ -36,7 +36,7 @@ import io
 from PIL import Image
 import os
 from controlnet_aux import HEDdetector
-from diffusers.utils import load_image
+
 
 wd = webdriver.Chrome()
 wd.implicitly_wait(2)
