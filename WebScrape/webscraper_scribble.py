@@ -26,10 +26,11 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 import requests
 import io
-from PIL import Image
+from PIL import Image, ImageOps
 import os
 from controlnet_aux import HEDdetector
 from diffusers.utils import load_image
+import numpy
 
 wd = webdriver.Chrome()
 wd.implicitly_wait(2)
@@ -98,17 +99,35 @@ def get_images_from_google(url, wd, max_images):
                     
     return image_urls
     
-
-def download_image(download_path, url, file_name, res):
+def download_image0(download_path, url, file_name, res):
     try:
         image_content = requests.get(url).content
         image_file = io.BytesIO(image_content)
         image = Image.open(image_file)
-        image = hed(image, image_resolution=res, scribble=True)
+        image = hed(image, detect_resolution=res, scribble=False)
+        image=ImageOps.invert(image)
         file_path = download_path + file_name
         
         with open(file_path, "wb") as f:
-            image.save(f, "JPEG")
+            image.save(f, "PNG")
+            
+        print("Saved", file_name)
+        return True
+    except Exception as e:
+        print("Failed -", e)
+        return False
+    
+def download_image1(download_path, url, file_name, res):
+    try:
+        image_content = requests.get(url).content
+        image_file = io.BytesIO(image_content)
+        image = Image.open(image_file)
+        image = hed(image, image_resolution=res,safe=False, scribble=True)
+        image=ImageOps.invert(image)
+        file_path = download_path + file_name
+        
+        with open(file_path, "wb") as f:
+            image.save(f, "PNG")
             
         print("Saved", file_name)
         return True
@@ -127,9 +146,10 @@ except:
     print("Directory imgs/ already created")
         
 for i, url in enumerate(urls):
-    if not download_image("imgs/", url, str(i) + "_scribble.png", 5000):
+    if not download_image0("imgs/", url, str(i) + ".png", 512):
         num_failed += 1
-        
+    if not download_image1("imgs/", url, str(i) + "_scribble.png", 5000):
+        num_failed += 1
         
 print("Failed to save", num_failed, "images")
 wd.quit()
