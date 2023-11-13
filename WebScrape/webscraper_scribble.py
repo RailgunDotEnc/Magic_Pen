@@ -106,12 +106,12 @@ def download_image0(download_path, url, file_name, res):
         image = Image.open(image_file)
         image = hed(image, detect_resolution=res, scribble=False)
         image=ImageOps.invert(image)
-        file_path = download_path + file_name
+        file_path = download_path  +"\\"+ file_name
         
         with open(file_path, "wb") as f:
             image.save(f, "PNG")
             
-        print("Saved", file_name)
+        print("Saved", file_path)
         return True
     except Exception as e:
         print("Failed -", e)
@@ -122,14 +122,14 @@ def download_image1(download_path, url, file_name, res):
         image_content = requests.get(url).content
         image_file = io.BytesIO(image_content)
         image = Image.open(image_file)
-        image = hed(image, image_resolution=res,safe=False, scribble=True)
+        image = hed(image, image_resolution=res,safe=True)
         image=ImageOps.invert(image)
-        file_path = download_path + file_name
-        
+        file_path = download_path +"\\"+ file_name
+        print(file_path)
         with open(file_path, "wb") as f:
             image.save(f, "PNG")
             
-        print("Saved", file_name)
+        print("Saved", file_path)
         return True
     except Exception as e:
         print("Failed -", e)
@@ -140,15 +140,17 @@ urls = get_images_from_google(search_url, wd, 5)
 print("Attempting to save", len(urls), "images")
 num_failed = 0
 
+current_directory = os.getcwd()
+relative_path_to_vectors = os.path.join('..', 'Vectorization\\sample_inputs\\CityLine')
+path = os.path.abspath(os.path.join(current_directory, relative_path_to_vectors))
 try:
-    os.mkdir("imgs")
+    os.mkdir(path)
 except:
-    print("Directory imgs/ already created")
+    print(f"Directory {path} already created")
         
 for i, url in enumerate(urls):
-    if not download_image0("imgs/", url, str(i) + ".png", 512):
-        num_failed += 1
-    if not download_image1("imgs/", url, str(i) + "_scribble.png", 5000):
+    current_directory = os.getcwd()
+    if not download_image0(path, url, str(i) + ".png", 512):
         num_failed += 1
         
 print("Failed to save", num_failed, "images")

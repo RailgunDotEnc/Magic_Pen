@@ -133,7 +133,8 @@ class GeneralRawDataLoader(object):
 
 def load_dataset_testing(test_data_base_dir, test_dataset, test_img_name, model_params):
     assert test_dataset in ['clean_line_drawings', 'rough_sketches', 'faces']
-    img_path = os.path.join(test_data_base_dir, test_dataset, test_img_name)
+    img_path = os.path.join(test_data_base_dir, test_img_name)
+    img_path=img_path.replace("\\","/")
     print('Loaded {} from {}'.format(img_path, test_dataset))
 
     eval_model_params = copy_hparams(model_params)

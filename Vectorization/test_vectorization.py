@@ -427,7 +427,7 @@ def main_testing(test_image_base_dir, test_dataset, test_image_name,
 
 def main(model_name, test_image_name, sampling_num):
     test_dataset = 'clean_line_drawings'
-    test_image_base_dir = 'sample_inputs'
+    test_image_base_dir = 'sample_inputs/CityLine'
 
     sampling_base_dir = 'outputs/sampling'
     model_base_dir = 'outputs/snapshot'
@@ -457,7 +457,12 @@ if __name__ == '__main__':
     parser.add_argument('--sample', '-s', type=int, default=1, help="The number of outputs.")
     args = parser.parse_args()
 
-    assert args.input != ''
-    assert args.sample > 0
-
-    main(args.model, args.input, args.sample)
+    current_directory = os.getcwd() 
+    files=os.listdir("/mnt/e/Magic_Pen//Vectorization/sample_inputs/CityLine")
+    if args.input == '':
+        for i in range(len(files)):
+            print(files[i])
+            assert args.sample > 0
+            main(args.model, files[i], args.sample)
+    else:
+        main(args.model, args.input, args.sample)
