@@ -359,7 +359,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     current_directory = os.getcwd() 
-    files=os.listdir("/mnt/e/Magic_Pen//Vectorization/sample_inputs/CityLine")
+    files=os.listdir(r"/mnt/e/Magic_Pen//Vectorization/sample_inputs/CityLine")
     if args.input == '':
         for i in range(len(files)):
             print(files[i])

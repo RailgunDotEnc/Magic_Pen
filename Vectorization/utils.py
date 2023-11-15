@@ -196,17 +196,17 @@ def draw_strokes(data, save_root, save_filename, input_img, image_size, init_cur
     stroke_count = len(data)
     color_rgb_set = get_colors(stroke_count)  # list of (3,) in [0, 255]
     color_idx = 0
-   
+
     for round_idx in range(len(infer_lengths)):
         round_length = infer_lengths[round_idx]
+
         cursor_pos = init_cursor[cursor_idx]  # (2)
         cursor_idx += 1
 
         prev_width = init_width
         prev_scaling = 1.0
         prev_window_size = raster_size  # (1)
-        #if round_idx==2:
-            #break
+
         for round_inner_i in range(round_length):
             stroke_idx = np.sum(infer_lengths[:round_idx]).astype(np.int32) + round_inner_i
 
@@ -277,17 +277,25 @@ def draw_strokes(data, save_root, save_filename, input_img, image_size, init_cur
             cursor_pos = cursor_pos_large / float(image_size)
 
             frames.append(canvas.copy())
-    print("Out of Loop")
+        #Save image per stroke
+        if True:
+                tempCanvas = np.clip(canvas, 0.0, 1.0)
+                tempCanvas = np.round((1.0 - tempCanvas) * 255.0).astype(np.uint8)  # [0-stroke, 255-BG]
+                os.makedirs(save_root, exist_ok=True)
+                save_path = os.path.join(save_root, save_filename)
+                canvas_img = Image.fromarray(tempCanvas, 'L')
+                canvas_img.save(f'{save_path[:-11]}_{round_idx}_pred.png', 'PNG')
+
     canvas = np.clip(canvas, 0.0, 1.0)
     canvas = np.round((1.0 - canvas) * 255.0).astype(np.uint8)  # [0-stroke, 255-BG]
 
     os.makedirs(save_root, exist_ok=True)
     save_path = os.path.join(save_root, save_filename)
     canvas_img = Image.fromarray(canvas, 'L')
+    save_path=save_path.replace("pred","pred_fine")
     canvas_img.save(save_path, 'PNG')
 
     if save_seq:
-        print("Save seq")
         seq_save_root = os.path.join(save_root, 'seq', save_filename[:-4])
         os.makedirs(seq_save_root, exist_ok=True)
         for len_i in range(len(frames)):
@@ -298,7 +306,6 @@ def draw_strokes(data, save_root, save_filename, input_img, image_size, init_cur
             frame_img.save(save_path, 'PNG')
 
     if draw_order:
-        print("Draw Order")
         order_save_root = os.path.join(save_root, 'order')
         order_comp_save_root = os.path.join(save_root, 'order-compare')
         os.makedirs(order_save_root, exist_ok=True)
