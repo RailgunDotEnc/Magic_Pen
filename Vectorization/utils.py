@@ -281,19 +281,23 @@ def draw_strokes(data, save_root, save_filename, input_img, image_size, init_cur
         if True:
                 tempCanvas = np.clip(canvas, 0.0, 1.0)
                 tempCanvas = np.round((1.0 - tempCanvas) * 255.0).astype(np.uint8)  # [0-stroke, 255-BG]
+                filename=save_filename.replace("_0_pred.png","")
                 os.makedirs(save_root, exist_ok=True)
+                os.makedirs("outputs/sampling/CityLine/Vec/"+filename, exist_ok=True)
                 save_path = os.path.join(save_root, save_filename)
+                save_path=save_path.replace("rough_sketches__pretrain_rough_sketches","CityLine/Vec/"+filename)
+                print("SAVED:",f'{save_path[:-11]}_{round_idx}_pred.png', f"{round_idx}/{len(infer_lengths)-1}")
                 canvas_img = Image.fromarray(tempCanvas, 'L')
                 canvas_img.save(f'{save_path[:-11]}_{round_idx}_pred.png', 'PNG')
 
     canvas = np.clip(canvas, 0.0, 1.0)
     canvas = np.round((1.0 - canvas) * 255.0).astype(np.uint8)  # [0-stroke, 255-BG]
-
+    filename=save_filename.replace("_0_pred.png","")
     os.makedirs(save_root, exist_ok=True)
     save_path = os.path.join(save_root, save_filename)
+    save_path=save_path.replace("rough_sketches__pretrain_rough_sketches","CityLine/Vec/"+filename)
     canvas_img = Image.fromarray(canvas, 'L')
-    save_path=save_path.replace("pred","pred_fine")
-    canvas_img.save(save_path, 'PNG')
+    canvas_img.save(f'{save_path[:-11]}_{round_idx}_pred.png', 'PNG')
 
     if save_seq:
         seq_save_root = os.path.join(save_root, 'seq', save_filename[:-4])

@@ -266,7 +266,7 @@ def main_testing(test_image_base_dir, test_dataset, test_image_name,
 
         ori_img = (input_photos.copy()[0] * 255.0).astype(np.uint8)
         ori_img_png = Image.fromarray(ori_img, 'RGB')
-        ori_img_png.save(os.path.join(sampling_dir, test_image_raw_name + '_input.png'), 'PNG')
+        ori_img_png.save(os.path.join("outputs/sampling/CityLine/HED", test_image_raw_name + '_input.png'), 'PNG')
 
         # decoding for sampling
         strokes_raw_out_list, states_raw_out_list, states_soft_out_list, pred_imgs_out, \
