@@ -217,7 +217,7 @@ def sample(sess, model, input_photos, init_cursor, image_size, init_len, seq_len
            round_cursor_list, round_length_real_list
 
 
-def main_testing(test_image_base_dir, test_dataset, test_image_name,
+def main_testing(Test,test_image_base_dir, test_dataset, test_image_name,
                  sampling_base_dir, model_base_dir, model_name,
                  sampling_num,
                  min_dist_p, max_dist_p,
@@ -266,8 +266,10 @@ def main_testing(test_image_base_dir, test_dataset, test_image_name,
 
         ori_img = (input_photos.copy()[0] * 255.0).astype(np.uint8)
         ori_img_png = Image.fromarray(ori_img, 'RGB')
-        ori_img_png.save(os.path.join("outputs/sampling/CityLine/HED", test_image_raw_name + '_input.png'), 'PNG')
-
+        if Test==True:
+            ori_img_png.save(os.path.join("outputs/sampling/CityLine/HED/Test", test_image_raw_name + '_input.png'), 'PNG')
+        elif Test==False:
+            ori_img_png.save(os.path.join("outputs/sampling/CityLine/HED/Train", test_image_raw_name + '_input.png'), 'PNG')
         # decoding for sampling
         strokes_raw_out_list, states_raw_out_list, states_soft_out_list, pred_imgs_out, \
         window_size_out_list, round_new_cursors, round_new_lengths = sample(
@@ -312,7 +314,7 @@ def main_testing(test_image_base_dir, test_dataset, test_image_name,
                       strokes_raw_out, multi_cursors,
                       test_image_size, round_new_lengths, eval_hps_model.min_width)
         print("Saved seq")
-        draw_strokes(strokes_raw_out, sampling_dir, test_image_raw_name + '_' + str(sampling_i) + '_pred.png',
+        draw_strokes(Test,strokes_raw_out, sampling_dir, test_image_raw_name + '_' + str(sampling_i) + '_pred.png',
                      ori_img, test_image_size,
                      multi_cursors, round_new_lengths, eval_hps_model.min_width, eval_hps_model.cursor_type,
                      sample_hps_model.raster_size, sample_hps_model.min_window_size,
@@ -322,7 +324,7 @@ def main_testing(test_image_base_dir, test_dataset, test_image_name,
         print("Drawed Stokes")
 
 
-def main(model_name, test_image_name, sampling_num):
+def main(model_name, test_image_name, sampling_num,Test):
 
     
     test_dataset = 'rough_sketches'
@@ -343,7 +345,7 @@ def main(model_name, test_image_name, sampling_num):
     # set numpy output to something sensible
     np.set_printoptions(precision=8, edgeitems=6, linewidth=200, suppress=True)
 
-    main_testing(test_image_base_dir, test_dataset, test_image_name,
+    main_testing(Test,test_image_base_dir, test_dataset, test_image_name,
                  sampling_base_dir, model_base_dir, model_name, sampling_num,
                  min_dist_p=min_dist_p, max_dist_p=max_dist_p,
                  draw_seq=draw_seq, draw_order=draw_color_order,
@@ -361,9 +363,12 @@ if __name__ == '__main__':
     current_directory = os.getcwd() 
     files=os.listdir(r"/mnt/e/Magic_Pen//Vectorization/sample_inputs/CityLine")
     if args.input == '':
+        split=int(len(files)*.8)
         for i in range(len(files)):
             print(files[i])
             assert args.sample > 0
-            main(args.model, files[i], args.sample)
+            if i<split: Test=True
+            else: Test= False
+            main(args.model, files[i], args.sample,Test)
     else:
         main(args.model, args.input, args.sample)

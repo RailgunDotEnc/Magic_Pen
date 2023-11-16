@@ -177,7 +177,7 @@ def image_pasting_v3_testing(patch_image, cursor, image_size, window_size_f, pas
     return pasted_image
 
 
-def draw_strokes(data, save_root, save_filename, input_img, image_size, init_cursor, infer_lengths, init_width,
+def draw_strokes(Test,data, save_root, save_filename, input_img, image_size, init_cursor, infer_lengths, init_width,
                  cursor_type, raster_size, min_window_size,
                  sess,
                  pasting_func=None,
@@ -283,21 +283,21 @@ def draw_strokes(data, save_root, save_filename, input_img, image_size, init_cur
                 tempCanvas = np.round((1.0 - tempCanvas) * 255.0).astype(np.uint8)  # [0-stroke, 255-BG]
                 filename=save_filename.replace("_0_pred.png","")
                 os.makedirs(save_root, exist_ok=True)
-                os.makedirs("outputs/sampling/CityLine/Vec/"+filename, exist_ok=True)
-                save_path = os.path.join(save_root, save_filename)
-                save_path=save_path.replace("rough_sketches__pretrain_rough_sketches","CityLine/Vec/"+filename)
-                print("SAVED:",f'{save_path[:-11]}_{round_idx}_pred.png', f"{round_idx}/{len(infer_lengths)-1}")
-                canvas_img = Image.fromarray(tempCanvas, 'L')
-                canvas_img.save(f'{save_path[:-11]}_{round_idx}_pred.png', 'PNG')
-
-    canvas = np.clip(canvas, 0.0, 1.0)
-    canvas = np.round((1.0 - canvas) * 255.0).astype(np.uint8)  # [0-stroke, 255-BG]
-    filename=save_filename.replace("_0_pred.png","")
-    os.makedirs(save_root, exist_ok=True)
-    save_path = os.path.join(save_root, save_filename)
-    save_path=save_path.replace("rough_sketches__pretrain_rough_sketches","CityLine/Vec/"+filename)
-    canvas_img = Image.fromarray(canvas, 'L')
-    canvas_img.save(f'{save_path[:-11]}_{round_idx}_pred.png', 'PNG')
+                #Save files for image to image
+                if Test==True:
+                    os.makedirs("outputs/sampling/CityLine/Vec_Pred/Test/"+filename, exist_ok=True)
+                    save_path = os.path.join(save_root, save_filename)
+                    save_path=save_path.replace("rough_sketches__pretrain_rough_sketches","CityLine/Vec_Pred/Test/"+filename)
+                    print("SAVED:",f'{save_path[:-11]}_{round_idx}_pred.png', f"{round_idx}/{len(infer_lengths)-1}")
+                    canvas_img = Image.fromarray(tempCanvas, 'L')
+                    canvas_img.save(f'{save_path[:-11]}_{round_idx}_pred.png', 'PNG')
+                else:
+                    os.makedirs("outputs/sampling/CityLine/Vec_Pred/Train/"+filename, exist_ok=True)
+                    save_path = os.path.join(save_root, save_filename)
+                    save_path=save_path.replace("rough_sketches__pretrain_rough_sketches","CityLine/Vec_Pred/Train/"+filename)
+                    print("SAVED:",f'{save_path[:-11]}_{round_idx}_pred.png', f"{round_idx}/{len(infer_lengths)-1}")
+                    canvas_img = Image.fromarray(tempCanvas, 'L')
+                    canvas_img.save(f'{save_path[:-11]}_{round_idx}_pred.png', 'PNG')
 
     if save_seq:
         seq_save_root = os.path.join(save_root, 'seq', save_filename[:-4])
