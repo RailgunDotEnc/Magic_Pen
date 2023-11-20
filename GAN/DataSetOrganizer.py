@@ -29,7 +29,7 @@ def concatinate(image1,image2,loc,num):
     img2.save(loc+f"{num}.png")
     
     
-#EX of Base directory
+#EX of Base directory Change as needed!!!!!!!!
 base_dir="E:\Magic_Pen"   
     
 os.makedirs(base_dir+r"\GAN\Data",exist_ok=True)
