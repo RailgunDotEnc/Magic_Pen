@@ -23,7 +23,7 @@ BUFFER_SIZE = 1
 # Number of training steps, should be a large number (>10000). Set to 100 for testing purposes
 STEPS = 100
 # Currently using JPEG images
-IMG_EXTENSION = ".jpeg"
+IMG_EXTENSION = ".jpg"
 
 import tensorflow as tf
 
@@ -36,6 +36,7 @@ from IPython import display
 
 
 def load(image_file):
+  image_file="facades/"+image_file
   # Read and decode an image file to a uint8 tensor
   image = tf.io.read_file(image_file)
   image = tf.io.decode_jpeg(image)
@@ -61,7 +62,7 @@ IMG_WIDTH = 256
 IMG_HEIGHT = 256
 
 ######################################################
-inp, re = load('train/0' + IMG_EXTENSION)
+inp, re = load('train/1' + IMG_EXTENSION)
 # Casting to int for matplotlib to display the images
 plt.figure()
 plt.imshow(inp / IMG_HEIGHT)
