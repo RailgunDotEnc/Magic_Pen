@@ -19,10 +19,11 @@ checkpoint shenanigans - idk what this does or where it goes but it seems import
 !ls {checkpoint_dir}
 """
 # Number of images in training set
-
+BUFFER_SIZE = 1
 # Number of training steps, should be a large number (>10000). Set to 100 for testing purposes
+STEPS = 10001
 # Currently using JPEG images
-
+IMG_EXTENSION = ".png"
 
 import tensorflow as tf
 
@@ -33,22 +34,9 @@ import datetime
 from matplotlib import pyplot as plt
 from IPython import display
 
-import random
-
 folder="Data/"
 gen_folder="Generated/"
-checkpoint_dir = './training_checkpoints1'
-STEPS = 50001
-IMG_EXTENSION = ".png"
-BUFFER_SIZE = 1
-rand_test=[]
-for i in range(int(STEPS/(STEPS/1000))):
-  while True:
-    ran=random.randint(0,STEPS-1)
-    if ran not in rand_test:
-      rand_test.append(ran)
-      break
-
+checkpoint_dir = './training_checkpoints2'
 def load(image_file):
   image_file=image_file
   # Read and decode an image file to a uint8 tensor
@@ -149,7 +137,7 @@ def load_image_test(image_file):
 
   return input_image, real_image
 
-train_dataset = tf.data.Dataset.list_files(folder+'train/*' + IMG_EXTENSION)
+train_dataset = tf.data.Dataset.list_files(folder+'train/1' + IMG_EXTENSION)
 train_dataset = train_dataset.map(load_image_train, num_parallel_calls=tf.data.AUTOTUNE)
 train_dataset = train_dataset.shuffle(BUFFER_SIZE)
 train_dataset = train_dataset.batch(BATCH_SIZE)
@@ -183,7 +171,7 @@ down_model = downsample(3, 4)
 down_result = down_model(tf.expand_dims(inp, 0))
 print (down_result.shape)
 
-#Define the upsampler (decoder):cd
+#Define the upsampler (decoder):
 def upsample(filters, size, apply_dropout=False):
   initializer = tf.random_normal_initializer(0., 0.02)
 
@@ -341,24 +329,25 @@ checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
                                  discriminator=discriminator)
 
 #Generate images
-def generate_images(model, test_input,name, tar=None, ):
-  prediction = model(test_input, training=True)
+def generate_images(model, test_input,name ,tar=None):
+  prediction = model(test_input, training=False)
   plt.figure(figsize=(15, 15))
 
-  display_list = [test_input[0], tar[0], prediction[0]]
-  title = ['Input Image', 'Ground Truth', 'Predicted Image']
+  display_list = [test_input[0], prediction[0]]
+  title = ['Input Image', 'Predicted Image']
 
-  for i in range(3):
+  for i in range(len(display_list)):
     plt.subplot(1, 3, i+1)
     plt.title(title[i])
     # Getting the pixel values in the [0, 1] range to plot.
-    plt.imshow(display_list[i] * 0.5 + 0.5)
+    plt.imshow(display_list[i])
     plt.axis('off')
-  plt.savefig(gen_folder+f'Training/{name}.png')
+  print("Saved image at",gen_folder+f'Testing/{name}.png')
+  plt.savefig(gen_folder+f'Testing/{name}.png')
   
 #Test generation
 #for example_input, example_target in test_dataset.take(1):
-#  generate_images(generator, example_input, example_target,)
+#  generate_images(generator, example_input, example_target)
   
 #Training
 log_dir="logs/"
@@ -407,17 +396,14 @@ def fit(train_ds, test_ds, steps):
 
       start = time.time()
 
-      generate_images(generator, example_input, f"train_{step}" ,example_target)
+      generate_images(generator, example_input, example_target)
       print(f"Step: {step//1000}k")
 
     train_step(input_image, target, step)
 
     # Training step
-    if (step+1) % 500 == 0:
+    if (step+1) % 10 == 0:
       print('.', end='', flush=True)
-      
-    if step in rand_test:
-      generate_images(generator, example_input, f"train_{step}" ,example_target)
 
 
     # Save (checkpoint) the model every 5k steps
@@ -432,7 +418,7 @@ Save logs in Tenserboard:
 
 #Run training loop
 #steps should be large (>10000). 10 for testing purposes
-fit(train_dataset, test_dataset, steps=STEPS)
+#fit(train_dataset, test_dataset, steps=STEPS)
 
 """
 !ls {checkpoint_dir}
@@ -440,8 +426,6 @@ fit(train_dataset, test_dataset, steps=STEPS)
 # Restoring the latest checkpoint in checkpoint_dir
 checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
 
-count=0
 # Run the trained model on a few examples from the test set
-for inp, tar in test_dataset.take(5):
-  generate_images(generator, inp, f"Test_{count}",tar)
-  count+=1
+for inp, tar in test_dataset.take(1):
+  generate_images(generator, inp,"generated_image" ,tar)

@@ -8,8 +8,8 @@ rand_val=[]
 
 def concatinate(image1,image2,loc,num):
     randy=random.randint(0, 3)
-    img = Image.open(image1) 
-    img1 = Image.open(image2) 
+    img = Image.open(image2) 
+    img1 = Image.open(image1) 
     img.size 
     img1.size 
     img_size = img.resize((256, 128)) 
@@ -47,15 +47,15 @@ train_vec=os.listdir(base_dir+r"\Vectorization\outputs\sampling\CityLine\Vec_Pre
 
 count=0
 
-#Save train files
+#Save test files
 for i in range(len(test_HED)):
-    temp_dir=os.listdir(base_dir+f"\\Vectorization\\outputs\\sampling\CityLine\\Vec_Pred\\Test\\{i}")
+    temp_dir=os.listdir(base_dir+f"\\Vectorization\\outputs\\sampling\CityLine\\Vec_Pred\\Test\\{test_vec[i]}")
     for j in range(len(temp_dir)):
         concatinate(base_dir+f"\\Vectorization\\outputs\\sampling\CityLine\\Vec_Pred\\Test\\{test_vec[i]}\\{temp_dir[j]}", base_dir+"\\Vectorization\\outputs\\sampling\\CityLine\\HED\\Test\\"+test_HED[i], base_dir+"\\GAN\\Data\\test\\",count)
         count+=1
         
 
-#Save Test Files
+#Save train Files
 count=0
 for i in range(len(train_HED)):
     temp_dir=os.listdir(base_dir+f"\\Vectorization\\outputs\\sampling\CityLine\\Vec_Pred\\Train\\{train_vec[i]}")
